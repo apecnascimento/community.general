@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 DOCUMENTATION = '''
@@ -27,7 +28,12 @@ options:
     name:
       description:
         - Acl token name.
-        - If not specified, lists all tokens.
+        - If this or accessor_id are not specified, lists all tokens.
+      type: str
+    accessor_id:
+      description:
+        - Acl token AccessorID.
+        - If this or name are not specified, lists all tokens.
       type: str
 seealso:
   - name: Nomad Acl token documentation
@@ -66,9 +72,42 @@ from ansible.module_utils.common.text.converters import to_native
 import_nomad = None
 try:
     import nomad
+
     import_nomad = True
 except ImportError:
     import_nomad = False
+
+
+def transform_response(nomad_response):
+    transformed_response = {
+        "accessor_id": nomad_response['AccessorID'],
+        "create_index": nomad_response['CreateIndex'],
+        "create_time": nomad_response['CreateTime'],
+        "expiration_ttl": nomad_response['ExpirationTTL'],
+        "expiration_time": nomad_response['ExpirationTime'],
+        "global": nomad_response['Global'],
+        "hash": nomad_response['Hash'],
+        "modify_index": nomad_response['ModifyIndex'],
+        "name": nomad_response['Name'],
+        "policies": nomad_response['Policies'],
+        "roles": nomad_response['Roles'],
+        "secret_id": nomad_response['SecretID'],
+        "type": nomad_response['Type']
+    }
+
+    return transformed_response
+
+
+def get_token(module, token_list):
+    token = None
+    if module.params.get('accessor_id'):
+        token = next((token for token in token_list
+                      if token.get('accessor_id') == module.params.get('accessor_id')), None)
+    if module.params.get('name'):
+        token = next((token for token in token_list
+                      if token.get('name') == module.params.get('name')), None)
+
+    return token
 
 
 def run():
@@ -83,9 +122,13 @@ def run():
             client_key=dict(type='path'),
             namespace=dict(type='str'),
             name=dict(type='str'),
+            accessor_id=dict(type='str'),
             token=dict(type='str', no_log=True)
         ),
-        supports_check_mode=True
+        supports_check_mode=True,
+        required_one_of=[
+            ['name', 'accessor_id']
+        ]
     )
 
     if not import_nomad:
@@ -106,17 +149,26 @@ def run():
 
     changed = False
     result = list()
+
     try:
-    #TODO: implement list tokens
+        tokens_list = next((transform_response(token) for token in nomad_client.acl.get_tokens()))
+        token = None
+        if module.params.get('name') or module.params.get('accessor_id'):
+            token = get_token(module, tokens_list)
+            if not token:
+                module.fail_json(msg="Couldn't find token with name " + str(module.params.get('name')))
+
+            result.append(token)
+        else:
+            result = tokens_list
+
     except Exception as e:
         module.fail_json(msg=to_native(e))
-
 
     module.exit_json(changed=changed, result=result)
 
 
 def main():
-
     run()
 
 
