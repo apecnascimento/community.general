@@ -42,17 +42,22 @@ seealso:
 '''
 
 EXAMPLES = '''
-- name: Get info for acl token dev-token
+- name: Get info for acl token by name
   community.general.nomad_token_info:
     host: localhost
     name: dev-token
+  register: token_result
+  
+- name: Get info for acl token by secret_id
+  community.general.nomad_token_info:
+    host: localhost
+    secret_id: "0d01c55f-8d63-f832-04ff-1866d4eb594e"
   register: token_result
 
 - name: List Nomad Acl tokens
   community.general.nomad_token_info:
     host: localhost
   register: token_list
-
 '''
 
 RETURN = '''
@@ -63,7 +68,6 @@ result:
     sample: [
         
     ]
-
 '''
 
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
