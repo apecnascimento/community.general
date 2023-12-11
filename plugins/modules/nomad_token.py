@@ -121,9 +121,9 @@ result:
     }
 '''
 
-from ansible.module_utils.basic import AnsibleModule, missing_required_lib
+from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.common.text.converters import to_native
-from ansible_collections.community.general.plugins.module_utils.nomad_utils import setup_nomad_client
+from ansible_collections.community.general.plugins.module_utils.nomad_utils import setup_nomad_client, nomad_auth_argument_spec
 
 import_nomad = None
 
@@ -162,25 +162,18 @@ def transform_response(nomad_response):
     return transformed_response
 
 
-argument_spec = dict(
-    host=dict(required=True, type='str'),
-    port=dict(type='int', default=4646),
-    state=dict(required=True, choices=['present', 'absent']),
-    use_ssl=dict(type='bool', default=True),
-    timeout=dict(type='int', default=5),
-    validate_certs=dict(type='bool', default=True),
-    client_cert=dict(type='path'),
-    client_key=dict(type='path'),
-    namespace=dict(type='str'),
-    token=dict(type='str', no_log=True),
-    name=dict(type='str'),
-    token_type=dict(choices=['client', 'management', 'bootstrap'], default='client'),
-    policies=dict(type='list', elements='str', default=[]),
-    global_replicated=dict(type='bool', default=False),
-)
-
-
 def setup_module_object():
+    argument_spec = nomad_auth_argument_spec()
+
+    module_spec = dict(
+        name=dict(type='str'),
+        token_type=dict(choices=['client', 'management', 'bootstrap'], default='client'),
+        policies=dict(type='list', elements='str', default=[]),
+        global_replicated=dict(type='bool', default=False),
+    )
+
+    argument_spec.update(module_spec)
+
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=False,

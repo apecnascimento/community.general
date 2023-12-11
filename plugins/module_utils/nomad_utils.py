@@ -1,3 +1,7 @@
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
 from ansible.module_utils.basic import missing_required_lib
 
 import_nomad = None
@@ -40,5 +44,6 @@ def nomad_auth_argument_spec():
         validate_certs=dict(type='bool', default=True),
         client_cert=dict(type='path'),
         client_key=dict(type='path'),
-        namespace=dict(type='str')     
+        namespace=dict(type='str'),
+        token=dict(type='str', no_log=True)
     )
