@@ -28,3 +28,17 @@ def setup_nomad_client(module):
     )
 
     return nomad_client
+
+
+def nomad_auth_argument_spec():
+    return dict(
+        host=dict(required=True, type='str'),
+        port=dict(type='int', default=4646),
+        state=dict(required=True, choices=['present', 'absent']),
+        use_ssl=dict(type='bool', default=True),
+        timeout=dict(type='int', default=5),
+        validate_certs=dict(type='bool', default=True),
+        client_cert=dict(type='path'),
+        client_key=dict(type='path'),
+        namespace=dict(type='str')     
+    )
