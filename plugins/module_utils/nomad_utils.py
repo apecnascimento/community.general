@@ -14,6 +14,13 @@ except ImportError:
     import_nomad = False
 
 
+def get_token(name, nomad_client):
+    tokens = nomad_client.acl.get_tokens()
+    token = next((token for token in tokens
+                  if token.get('Name') == name), None)
+    return token
+
+
 def setup_nomad_client(module):
     if not import_nomad:
         module.fail_json(msg=missing_required_lib("python-nomad"))

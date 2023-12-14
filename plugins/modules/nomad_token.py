@@ -123,43 +123,12 @@ result:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.common.text.converters import to_native
-from ansible_collections.community.general.plugins.module_utils.nomad_utils import setup_nomad_client, nomad_auth_argument_spec
-
-import_nomad = None
-
-try:
-    import nomad
-
-    import_nomad = True
-except ImportError:
-    import_nomad = False
-
-
-def get_token(name, nomad_client):
-    tokens = nomad_client.acl.get_tokens()
-    token = next((token for token in tokens
-                  if token.get('Name') == name), None)
-    return token
-
-
-def transform_response(nomad_response):
-    transformed_response = {
-        "accessor_id": nomad_response['AccessorID'],
-        "create_index": nomad_response['CreateIndex'],
-        "create_time": nomad_response['CreateTime'],
-        "expiration_ttl": nomad_response['ExpirationTTL'],
-        "expiration_time": nomad_response['ExpirationTime'],
-        "global": nomad_response['Global'],
-        "hash": nomad_response['Hash'],
-        "modify_index": nomad_response['ModifyIndex'],
-        "name": nomad_response['Name'],
-        "policies": nomad_response['Policies'],
-        "roles": nomad_response['Roles'],
-        "secret_id": nomad_response['SecretID'],
-        "type": nomad_response['Type']
-    }
-
-    return transformed_response
+from ansible_collections.community.general.plugins.module_utils.nomad_utils import (
+    get_token,
+    setup_nomad_client,
+    nomad_auth_argument_spec,
+    transform_token_response
+)
 
 
 def setup_module_object():
@@ -204,18 +173,19 @@ def run(module):
                 else:
                     nomad_result = nomad_client.acl.generate_bootstrap()
                     msg = "Boostrap token created."
-                    result = transform_response(nomad_result)
+                    result = transform_token_response(nomad_result)
                     changed = True
 
-            except nomad.api.exceptions.URLNotAuthorizedNomadException:
-                try:
-                    nomad_result = nomad_client.acl.generate_bootstrap()
-                    msg = "Boostrap token created."
-                    result = transform_response(nomad_result)
-                    changed = True
+            except Exception as ex:
+                if "URLNotAuthorizedNomadException" in str(type(ex)):
+                    try:
+                        nomad_result = nomad_client.acl.generate_bootstrap()
+                        msg = "Boostrap token created."
+                        result = transform_token_response(nomad_result)
+                        changed = True
 
-                except Exception as e:
-                    module.fail_json(msg=to_native(e))
+                    except Exception as e:
+                        module.fail_json(msg=to_native(e))
         else:
             try:
                 token_info = {
@@ -231,13 +201,13 @@ def run(module):
                     token_info['AccessorID'] = current_token['AccessorID']
                     nomad_result = nomad_client.acl.update_token(current_token['AccessorID'], token_info)
                     msg = "ACL token updated."
-                    result = transform_response(nomad_result)
+                    result = transform_token_response(nomad_result)
                     changed = True
 
                 else:
                     nomad_result = nomad_client.acl.create_token(token_info)
                     msg = "ACL token Created."
-                    result = transform_response(nomad_result)
+                    result = transform_token_response(nomad_result)
                     changed = True
 
             except Exception as e:

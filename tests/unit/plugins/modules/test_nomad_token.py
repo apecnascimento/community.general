@@ -9,11 +9,15 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 import nomad
+from requests import Response
 from ansible_collections.community.general.plugins.modules import nomad_token
 from ansible_collections.community.general.tests.unit.compat.mock import patch
 from ansible_collections.community.general.tests.unit.plugins.modules.utils import AnsibleExitJson, AnsibleFailJson, \
     ModuleTestCase, \
     set_module_args
+
+def mock_get_tokens_acl_error():
+    raise nomad.api.exceptions.URLNotAuthorizedNomadException
 
 
 def mock_acl_get_tokens(empty_list=False):
@@ -139,9 +143,34 @@ class TestNomadTokenModule(ModuleTestCase):
 
                 with self.assertRaises(AnsibleExitJson):
                     self.module.main()
+ 
+                self.assertIs(mock_get_tokens.call_count, 1)
+                self.assertIs(mock_generate_bootstrap.call_count, 1)
+
+
+    def test_should_create_token_type_bootstrap_with_acl_error(self):
+        module_args = {
+            'host': 'localhost',
+            'token_type': 'bootstrap',
+            'state': 'present'
+        }
+
+        set_module_args(module_args)
+        response = Response()
+        response.status_code = 403
+        with patch.object(nomad.api.acl.Acl, 'get_tokens') as mock_get_tokens:
+            with patch.object(nomad.api.Acl, 'generate_bootstrap') as mock_generate_bootstrap:
+                mock_get_tokens.side_effect = nomad.api.exceptions.URLNotAuthorizedNomadException(response)
+                mock_generate_bootstrap.return_value = mock_acl_generate_bootstrap()
+
+                with self.assertRaises(AnsibleExitJson):
+                    self.module.main()
 
                 self.assertIs(mock_get_tokens.call_count, 1)
                 self.assertIs(mock_generate_bootstrap.call_count, 1)
+
+
+
 
     def test_should_fail_delete_without_name_parameter(self):
         module_args = {
